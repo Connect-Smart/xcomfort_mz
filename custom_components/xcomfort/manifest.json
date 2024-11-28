@@ -1,6 +1,6 @@
 {
   "domain": "xcomfort",
-  "name": "XComfort SHC Connect-Smat",
+  "name": "XComfort SHC Connect-Smart",
   "config_flow": true,
   "version": "1.3.6",
   "documentation": "https://github.com/Connect-Smart/xcomfort_mz",
