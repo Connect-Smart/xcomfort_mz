@@ -8,24 +8,21 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class xcomfortAPI:
-    def __init__(self, session: aiohttp.ClientSession, url, zones, username, password, stat_interval):
+    def __init__(self, session: aiohttp.ClientSession, url, username, password, stat_interval):
         self.sessionID = ''
         self.session = session
         self.devices = {}
         self.scenes = {}
         self.log_stats = {}
-        self.zones_list = {}
-        self.heating_zones = []
+        self.zones_list = []
         self.heating_status = {}
         self.username = username
         self.url = url
-        self.zones = zones  # Lijst van zones
         self.password = password
         self.update_counter = 0
         self.stat_interval = stat_interval
         self.stat_scan_now = False
         self.is_connected = False
-
 
     async def connect(self):
         _LOGGER.debug("connect()")
@@ -34,22 +31,27 @@ class xcomfortAPI:
             auth = aiohttp.BasicAuth(login=self.username, password=self.password)
 
             async with self.session.get(self.url, auth=auth) as response:
-                _LOGGER.debug("connect() response.status=%d",response.status)
-                if response.status != 200:
-                    if response.status == 401:
-                        _LOGGER.error('connect() Invalid username/password\nAborting...')
-                        exit(1)
-                    else:
-                        _LOGGER.error('.connect() Server responded with status code %s', str(response.status_code))
-                        exit(1)
-                else:
-                    _LOGGER.debug('connect() headers=%s',response.headers)
+                _LOGGER.debug("connect() response.status=%d", response.status)
+                if response.status == 200:
                     sID = response.headers.get("Set-Cookie")
                     x = sID.find("End")
                     self.sessionID = sID[0:x+3]
-                    _LOGGER.debug('xcomfortAPI.connect() New sessionID = %s', self.sessionID)
-            async with aiofiles.open("xcomfort_session", "w") as file:
-                await file.write(self.sessionID)
+                    _LOGGER.debug('New sessionID = %s', self.sessionID)
+                    self.is_connected = True
+                else:
+                    _LOGGER.error('Failed to connect: status %d', response.status)
+                    self.is_connected = False
+                    raise ConnectionError("Unable to connect to xComfort API")
+
+            # Zones ophalen na succesvolle verbinding
+            await self.get_zones()
+
+    async def get_zones(self):
+        _LOGGER.debug("Fetching zones from API...")
+        response = await self.query('HFM/getZones', params=[''])
+        self.zones_list = [zone['name'] for zone in response]
+        _LOGGER.debug("Discovered zones: %s", self.zones_list)
+        return self.zones_list
 
     async def query(self, method, params=['', '']):
         #_LOGGER.debug("query(%s)",method)
