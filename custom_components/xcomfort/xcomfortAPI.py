@@ -102,19 +102,23 @@ class xcomfortAPI:
 
     async def get_statuses(self):
         _LOGGER.debug("get_statuses() counter=%d, stat_interval=%d", self.update_counter, self.stat_interval)
-        for zone in self.zones:
+        for zone in self.zones_list:
             self.devices[zone] = await self.query('StatusControlFunction/getDevices', params=[zone, ''])
             self.scenes[zone] = await self.query('SceneFunction/getScenes', params=[zone, ''])
+
             if (self.update_counter <= 0) or self.stat_scan_now:
                 self.update_counter = self.stat_interval
                 self.stat_scan_now = False
-                for zone in self.heating_zones:
-                    results = await self.query('ClimateFunction/getZoneOverview', [zone])
-                    _target_temp = float(results[0]['overview'][0]['setpoint'])
-                    _heating = results[0]['overview'][0]['typeId']
-                    self.heating_status.update({zone: {'heating': _heating, "setpoint": _target_temp}})
+
+                # Controleer heating status voor elke zone
+                results = await self.query('ClimateFunction/getZoneOverview', [zone])
+                _target_temp = float(results[0]['overview'][0]['setpoint'])
+                _heating = results[0]['overview'][0]['typeId']
+                self.heating_status.update({zone: {'heating': _heating, "setpoint": _target_temp}})
+
         self.update_counter -= 1
         return True
+
 
     async def get_zones(self):
         _LOGGER.debug("get_zones()")
